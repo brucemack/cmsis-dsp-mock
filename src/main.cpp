@@ -15,7 +15,21 @@ void arm_fir_init_f32(arm_fir_instance_f32*	s,
     s->pCoeffs = pCoeffs;
     // EXTRA
     s->blockSize = blockSize;
-    for (unsigned i = 0; i < numTaps - 1; i++)
+    for (uint16_t i = 0; i < numTaps + blockSize - 1; i++)
+        s->pState[i] = 0;
+}
+
+void arm_fir_init_q15(arm_fir_instance_q15* s,
+    uint16_t numTaps,
+    const int16_t* pCoeffs,
+    int16_t* pState,
+    uint32_t blockSize) {
+    s->numTaps = numTaps;
+    s->pState = pState;
+    s->pCoeffs = pCoeffs;
+    // EXTRA
+    s->blockSize = blockSize;
+    for (uint16_t i = 0; i < numTaps  + blockSize - 1; i++)
         s->pState[i] = 0;
 }
 
@@ -33,7 +47,8 @@ arm_status arm_fir_decimate_init_f32(arm_fir_decimate_instance_f32* s,
     s->pCoeffs = pCoeffs;
     // EXTRA
     s->blockSize = blockSize;
-    for (unsigned i = 0; i < numTaps - 1; i++)
+    // TODO: CHECK THIS SIZE?
+    for (uint16_t i = 0; i < numTaps - 1; i++)
         s->pState[i] = 0;
     return arm_status::ARM_MATH_SUCCESS;
 }
@@ -51,7 +66,8 @@ arm_status arm_fir_interpolate_init_f32(arm_fir_interpolate_instance_f32* s,
     s->pCoeffs = pCoeffs;
     // EXTRA
     s->blockSize = blockSize;
-    for (unsigned i = 0; i < numTaps / L - 1; i++)
+    // TODO: CHECK THIS SIZE?
+    for (uint16_t i = 0; i < numTaps / L - 1; i++)
         s->pState[i] = 0;
     return arm_status::ARM_MATH_SUCCESS;
 }
@@ -100,8 +116,29 @@ void arm_fir_q31(const arm_fir_instance_q31* s,
     for (unsigned k = 0; k < blockSize; k++) {
         q31_t a = 0;
         for (unsigned i = 0; i < s->numTaps; i++)
-            //a += dataHistory[i] * s->pCoeffs[i];
             a += mult_q31(dataHistory[i], s->pCoeffs[i]);
+        pDst[k] = a;
+        dataHistory++;
+    }
+}
+
+void arm_fir_q15(const arm_fir_instance_q15* s,
+    const q15_t* pSrc, q15_t* pDst, uint32_t blockSize) {
+    assert(blockSize == s->blockSize);
+    // Shift left to free space for new data   
+    memmove((void*)(s->pState), (const void*)&(s->pState[blockSize]), 
+        (s->numTaps - 1) * sizeof(q15_t));
+    // Fill in new data on far right
+    memcpy((void*)&(s->pState[s->numTaps - 1]), (const void*)pSrc, 
+        blockSize * sizeof(q15_t));
+    // Do the MA
+    const q15_t* dataHistory = s->pState;
+    for (unsigned k = 0; k < blockSize; k++) {
+        int32_t a = 0;
+        for (unsigned i = 0; i < s->numTaps; i++)
+            a += dataHistory[i] * s->pCoeffs[i];
+        // Final down-shift becaue of the multiplications above
+        a = a >> 15;
         pDst[k] = a;
         dataHistory++;
     }

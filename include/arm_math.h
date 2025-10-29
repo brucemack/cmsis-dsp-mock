@@ -1,12 +1,28 @@
+/**
+ * Copyright (C) 2025, Bruce MacKinnon KC1FSZ
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 #ifndef _arm_math_h
 #define _arm_math_h
 
-//#include <stdfloat>
 #include <cstdint>
 
 // TODO: FIGURE OUT WHERE DEFINED
 typedef float float32_t;
 typedef int32_t q31_t;
+typedef int16_t q15_t;
 
 #define PI               3.14159265358979f
 
@@ -26,6 +42,14 @@ struct arm_fir_instance_q31 {
     uint16_t numTaps; 
     q31_t* pState;
     const q31_t* pCoeffs;
+    // EXTRA
+    uint32_t blockSize;
+};
+
+struct arm_fir_instance_q15 {
+    uint16_t numTaps; 
+    q15_t* pState;
+    const q15_t* pCoeffs;
     // EXTRA
     uint32_t blockSize;
 };
@@ -74,6 +98,20 @@ void arm_fir_init_q31(arm_fir_instance_q31* S,
 );
 
 /**
+ * Initializes an FIR filter (one-time call).
+ * 
+ * @param pCoeffs Filter coefficients in reverse order!
+ * @param pState Must be numTaps + blockSize - 1 in length 
+ * @param blockSize Number of INPUT samples to process
+ */
+void arm_fir_init_q15(arm_fir_instance_q15* S,
+    uint16_t numTaps,
+    const q15_t* pCoeffs,
+    q15_t* pState,
+    uint32_t blockSize 
+);
+
+/**
  * @param pCoeffs Filter coefficients in reverse order!
  * @param pState Must be numTaps + blockSize - 1 in length 
  * @param blockSize Number of INPUT samples to process
@@ -113,6 +151,15 @@ void arm_fir_f32(const arm_fir_instance_f32* S,
 /**
  * @param blockSize Number of INPUT samples to process
  */
+void arm_fir_q15(const arm_fir_instance_q15* S,
+    const int16_t* pSrc,
+    int16_t* pDst,
+    uint32_t blockSize 
+);
+
+/**
+ * @param blockSize Number of INPUT samples to process
+ */
 void arm_fir_decimate_f32(const arm_fir_decimate_instance_f32* S,
     const float32_t* pSrc,
     float32_t* pDst,
@@ -126,6 +173,7 @@ void arm_fir_interpolate_f32(const arm_fir_interpolate_instance_f32* s,
     const float32_t* pSrc,
     float32_t* pDst,
     uint32_t blockSize);
+
 /**
  * The coefficients are stored in the array pCoeffs in 
  * the following order:
